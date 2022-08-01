@@ -2,13 +2,22 @@ import sqlalchemy as sq
 from sqlalchemy.orm import sessionmaker
 from Models import Base, Publisher, Sale, Shop, Stock, Book
 import json
+import os
 
 
-user = input('Введите имя пользователя БД: ')
-password = input('Введите пароль пользователя БД: ')
-database = input('Введите имя базы данных: ')
-DSN = f'postgresql://{user}:{password}@localhost:5432/{database}'
-engine = sq.create_engine(DSN)
+def get_connection():
+    user = os.getenv('db_user')
+    if user is None:
+        user = 'postgres'
+    password = os.getenv('db_password')
+    if password is None:
+        password = 'postgres'
+    database = os.getenv('db_name')
+    if database is None:
+        database = 'publishing_house'
+    DSN = f'postgresql://{user}:{password}@localhost:5432/{database}'
+    engine = sq.create_engine(DSN)
+    return engine
 
 
 def create_tables(engine):
@@ -40,27 +49,37 @@ def populate_db():
 def find_publisher():
     choice = input('Найти издателя по имени(1), по id(2)? ')
     if choice == '1':
-        publisher_data = input('Введите имя издателя:')
-        chek = (publisher_data,)
+        publisher_name = input('Введите имя издателя:')
+        chek = (publisher_name,)
         if chek not in session.query(Publisher.name).all():
             print("Такого издателя нет!")
             return
-        result = session.query(Publisher).filter(Publisher.name == publisher_data).one()
+        publisher_data = session.query(Publisher).filter(Publisher.name == publisher_name).one()
+        print(publisher_data)
+        for s in session.query(Shop.name).join(Stock).join(Book).join(Publisher).filter(Publisher.name == publisher_name).all():
+            print(f'Shop: {s[0]}')
     elif choice == '2':
-        publisher_data = int(input('Введите id издателя:'))
-        chek = (publisher_data,)
+        publisher_id = int(input('Введите id издателя:'))
+        chek = (publisher_id,)
         if chek not in session.query(Publisher.id).all():
             print("Такого издателя нет!")
             return
-        result = session.query(Publisher).filter(Publisher.id == publisher_data).one()
+        publisher_data = session.query(Publisher).filter(Publisher.id == publisher_id).one()
+        print(publisher_data)
+        for s in session.query(Shop.name).join(Stock).join(Book).join(Publisher).filter(Publisher.id == publisher_id).all():
+            print(f'Shop: {s[0]}')
 
-    return result
+    return
 
 
-Session = sessionmaker(bind=engine)
+Session = sessionmaker(bind=get_connection())
+
 session = Session()
 
-res = find_publisher()
-print(res)
+# create_tables()
+# populate_db()
+find_publisher()
 
 session.close()
+
+
